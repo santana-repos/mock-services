@@ -1,0 +1,12 @@
+
+name: Security
+
+on: push
+
+jobs:
+  horusec:
+    name: horusec
+    runs-on: ubuntu-latest
+    steps:
+    - name: Running Horusec
+      run: horusec start -p .

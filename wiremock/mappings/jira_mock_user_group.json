@@ -1,0 +1,25 @@
+{
+    "id": "348b4378-19ae-4a02-bc11-dc2cae1a8132",
+    "request": {
+        "urlPathPattern": "/jira/rest/api/3/user/groups?(.*)",
+        "method": "GET"
+    },
+    "response": {
+        "status": 200,
+        "jsonBody": [
+            {
+                "self": "00-mock0-0001",
+                "name": "00-mock0-0001"
+            }
+        ],
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "transformers": [
+            "response-template"
+        ]
+    },
+    "uuid": "d3a43dec-28af-4e98-b3e3-24e111a956a8",
+    "persistent": true,
+    "insertionIndex": 17
+}

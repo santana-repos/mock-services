@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+  name: mock-services-fake-smtp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-services-fake-smtp
+  template:
+    metadata:
+      labels:
+        app: mock-services-fake-smtp
+    spec:
+      serviceAccountName: eks-santana-repos-service-account
+      containers:
+        - name: mock-services-fake-smtp
+          image: $SERVER_REPO_BASE_FAKE_SMTP
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FAKE-SMTP
+              value: fooBar
+          ports:
+            - name: fake-smtp
+              containerPort: 25
+              protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-services-fake-smtp
+spec:
+  selector:
+    app: mock-services-fake-smtp
+  ports:
+    - port: 25
+      protocol: TCP
+      targetPort: 25
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-mock-services-fake-smtp
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: fake-smtp.satana-repos.com.br
+      http:
+        paths:
+        - backend:
+            service:
+              name: mock-services-fake-smtp
+              port:
+                number: 25
+          path: /
+          pathType: ImplementationSpecific

@@ -1,0 +1,1 @@
+echo "Test message from my host to Fake SMTP using ssmtp :)" | ssmtp -vvv user@santana-repos.com.br

@@ -1,0 +1,20 @@
+{
+    "id": "d3a43dec-28af-4e98-b3e3-24e111a956a8",
+    "request": {
+        "urlPathPattern": "/jira/rest/api/3/user",
+        "method": "POST"
+    },
+    "response": {
+        "status": 201,
+        "jsonBody": {},
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "transformers": [
+            "response-template"
+        ]
+    },
+    "uuid": "d3a43dec-28af-4e98-b3e3-24e111a956a8",
+    "persistent": true,
+    "insertionIndex": 17
+}

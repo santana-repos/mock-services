@@ -1,0 +1,95 @@
+# AWS Codebuild config file
+
+version: 0.2
+
+env:
+  secrets-manager:
+    AWS_ACCESS_KEY_ID: $PROFILE/mock-services/clusterKey:AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY: $PROFILE/mock-services/clusterKey:AWS_SECRET_ACCESS_KEY
+
+phases:
+  install:
+    runtime-versions:
+      docker: 18
+      java: corretto11
+    commands:
+      - echo "Installing KUBECTL..."
+      - curl -o /bin/kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.21.2/2021-07-05/bin/linux/amd64/kubectl
+      - chmod +x /bin/kubectl
+      - echo "... KUBECTL successfully installed"
+  pre_build:
+    commands:
+      - echo "Connecting to AWS ECR..."
+      - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+      - echo "Conected to AWS ECR"
+      - echo "Installing AWSCLI..."
+      - pip3 install awscli --upgrade --user
+      - echo "... AWSCLI successfully installed"
+      - echo "Updating EKS client configuration..."
+      - export CODEARTIFACT_TOKEN=`aws codeartifact get-authorization-token --domain $DOMAIN --domain-owner $CODEARTIFACT_ACCOUNT_NUMBER --query authorizationToken --region $AWS_DEFAULT_REGION --output text`
+      - aws eks --region $AWS_DEFAULT_REGION update-kubeconfig --name $CLUSTER_NAME
+      # this workaround is necessary after April 2022's EKS update to 1.19 version
+      - sed -i 's/v1beta1/v1alpha1/g' /root/.kube/config
+      - echo "... EKS client configuration successfully updated"
+  build:
+    commands:
+      - echo "AWS Codebuild Build proccess initiated on $(date)"
+      
+      - echo "Building Fake SMTP Docker image..."
+      - COMMIT_DATE=$(date +"%m-%d-%Y-%H%M-")
+      - COMMIT_TAG_MAN=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | awk  '{ COMMIT_TAG=substr($0, 1, 5); print COMMIT_TAG; }' )
+      - echo "value of envVar ECR_MOCK_SMTP_REPO="$ECR_MOCK_SMTP_REPO
+      - SERVER_REPO_BASE_FAKE_SMTP=$(echo $ACCOUNT_NUMBER.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_MOCK_SMTP_REPO:$COMMIT_DATE$COMMIT_TAG_MAN)
+      - echo "value of envVar SERVER_REPO_BASE_FAKE_SMTP="$SERVER_REPO_BASE_FAKE_SMTP
+      - docker build -t $SERVER_REPO_BASE_FAKE_SMTP ./fake-smtp --build-arg environmentName=$NAMESPACE
+      - echo "... Fake SMTP new docker imager successfully created"
+      
+      - echo "Building Wiremocks Docker image..."
+      - COMMIT_DATE=$(date +"%m-%d-%Y-%H%M-")
+      - COMMIT_TAG_MAN=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | awk  '{ COMMIT_TAG=substr($0, 1, 5); print COMMIT_TAG; }' )
+      - echo "value of envVar ECR_WIREMOCKS_REPO="$ECR_WIREMOCKS_REPO
+      - SERVER_REPO_BASE_WIREMOCK=$(echo $ACCOUNT_NUMBER.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_WIREMOCKS_REPO:$COMMIT_DATE$COMMIT_TAG_MAN)
+      - echo "value of envVar SERVER_REPO_BASE_WIREMOCK="$SERVER_REPO_BASE_WIREMOCK
+      - docker build -t $SERVER_REPO_BASE_WIREMOCK ./wiremock --build-arg environmentName=$NAMESPACE
+      - echo "... Wiremocks new docker imager successfully create"
+  post_build:
+    commands:
+      - echo "Uploading Fake SMTP image to Docker Registry (aka AWS ECR)..."
+      - echo "value of envVar SERVER_REPO_BASE_FAKE_SMTP="$SERVER_REPO_BASE_FAKE_SMTP
+      - docker push $SERVER_REPO_BASE_FAKE_SMTP
+      - echo "Fake SMTP image published"
+
+      - echo "Uploading Wiremocks image to Docker Registry (aka AWS ECR)..."
+      - echo "value of envVar SERVER_REPO_BASE_WIREMOCK="$SERVER_REPO_BASE_WIREMOCK
+      - docker push $SERVER_REPO_BASE_WIREMOCK
+      - echo "Wiremocks image published"
+      
+      - echo "deploying Fake SMTP to cluster..."
+      - aws eks get-token --cluster-name $CLUSTER_NAME
+      - kubectl --kubeconfig /root/.kube/config get nodes
+      - echo "Testing if Pods Scale Down is necessary..."
+      - DEPLOYMENT_TEST=""
+      - DEPLOYMENT_TEST=`kubectl -n $NAMESPACE get deployment $K8S_MOCK_SMTP_DEPLOYMENT_NAME 2> /dev/null | awk 'NR>1{ print $1 }'`
+      - echo "value of envVar DEPLOYMENT_TEST="$DEPLOYMENT_TEST
+      - if [ -n "$DEPLOYMENT_TEST" ] ; then echo "Deployment $K8S_MOCK_SMTP_DEPLOYMENT_NAME alredy exists, Performing Scale Down...." && kubectl scale deployment/$K8S_MOCK_SMTP_DEPLOYMENT_NAME --replicas=0 -n $NAMESPACE ; else echo "Deployment $K8S_MOCK_SMTP_DEPLOYMENT_NAME doesn't exists Scale Down not necessary. Continue to K8s apply..." ; fi
+      - echo "Applying deployments..."
+      - envsubst < $K8S_MOCK_SMTP_YML_PATH | kubectl --kubeconfig /root/.kube/config -n $NAMESPACE apply -f - ; EXITCODE=$?
+      - echo "scaling up deployment and rolling out..."
+      - if ! kubectl rollout status deployment $K8S_MOCK_SMTP_DEPLOYMENT_NAME -n $NAMESPACE ; then echo "New deployment has fail, performing rollback to the previous stable deployed image"; kubectl rollout undo deployment $K8S_MOCK_SMTP_DEPLOYMENT_NAME -n $NAMESPACE; kubectl rollout status deployment $K8S_MOCK_SMTP_DEPLOYMENT_NAME -n $NAMESPACE; exit 1; fi
+      - echo "Fake SMTP deployed"
+      
+      - echo "deploying Wiremocks to cluster..."
+      - aws eks get-token --cluster-name $CLUSTER_NAME
+      - kubectl --kubeconfig /root/.kube/config get nodes
+      - echo "Testing if Pods Scale Down is necessary..."
+      - DEPLOYMENT_TEST=""
+      - DEPLOYMENT_TEST=`kubectl -n $NAMESPACE get deployment $K8S_WIREMOCKS_DEPLOYMENT_NAME 2> /dev/null | awk 'NR>1{ print $1 }'`
+      - echo "alue of envVar DEPLOYMENT_TEST="$DEPLOYMENT_TEST
+      - if [ -n "$DEPLOYMENT_TEST" ] ; then echo "Deployment $K8S_WIREMOCKS_DEPLOYMENT_NAME alredy exists, Performing Scale Down...." && kubectl scale deployment/$K8S_WIREMOCKS_DEPLOYMENT_NAME --replicas=0 -n $NAMESPACE ; else echo "Deployment $K8S_WIREMOCKS_DEPLOYMENT_NAME doesn't exists Scale Down not necessary. Continue to K8s apply..." ; fi
+      - echo "Applying deployments..."
+      - envsubst < $K8S_WIREMOCKS_YML_PATH | kubectl --kubeconfig /root/.kube/config -n $NAMESPACE apply -f - ; EXITCODE=$?
+      - echo "scaling up deployment and rolling out..."
+      - if ! kubectl rollout status deployment $K8S_WIREMOCKS_DEPLOYMENT_NAME -n $NAMESPACE ; then echo "New deployment has fail, performing rollback to the previous stable deployed image"; kubectl rollout undo deployment $K8S_WIREMOCKS_DEPLOYMENT_NAME -n $NAMESPACE; kubectl rollout status deployment $K8S_WIREMOCKS_DEPLOYMENT_NAME -n $NAMESPACE; exit 1; fi
+      - echo "Wiremocks deployed"
+      
+      - echo "Kubernetes deployment phase completed and buildspec done"

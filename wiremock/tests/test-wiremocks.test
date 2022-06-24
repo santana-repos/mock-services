@@ -1,0 +1,2 @@
+curl -X GET -vv http://localhost:8089/jira/rest/api/3/user/groups?accountId=5b10ac8d82e05b22cc7d4ef5 | jq
+curl -X GET -vv http://localhost:8089/jira/rest/api/3/user/groups?accountId=00-test-account-001 | jq

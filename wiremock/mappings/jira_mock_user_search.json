@@ -1,0 +1,62 @@
+{
+    "id": "d3a43dec-28af-4e98-b3e3-24e111a956a8",
+    "request": {
+        "urlPathPattern": "/jira/rest/api/3/user/search",
+        "method": "GET",
+        "queryParameters": {
+            "query": {
+                "matches": ".*"
+            }
+        }
+    },
+    "response": {
+        "status": 200,
+        "jsonBody": [
+            {
+                "self": "",
+                "accountId": "00-mock0-0001",
+                "username": "{{request.query.query}}",
+                "accountType": "",
+                "emailAddress": "",
+                "avatarUrls": {
+                    "_48x48": "",
+                    "_24x24": "",
+                    "_16x16": "",
+                    "_32x32": ""
+                },
+                "displayName": "",
+                "active": "",
+                "timeZone": "",
+                "locale": "",
+                "groups": {
+                    "size": "",
+                    "items": [
+                        {
+                            "name": "",
+                            "self": ""
+                        }
+                    ]
+                },
+                "applicationRoles": {
+                    "size": "",
+                    "items": [
+                        {
+                            "name": "",
+                            "self": ""
+                        }
+                    ]
+                },
+                "expand": ""
+            }
+        ],
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "transformers": [
+            "response-template"
+        ]
+    },
+    "uuid": "d3a43dec-28af-4e98-b3e3-24e111a956a8",
+    "persistent": true,
+    "insertionIndex": 17
+}

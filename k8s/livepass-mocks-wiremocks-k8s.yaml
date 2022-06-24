@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+  name: mock-services-wiremocks
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-services-wiremocks
+  template:
+    metadata:
+      labels:
+        app: mock-services-wiremocks
+    spec:
+      serviceAccountName: eks-santana-repos-service-account
+      containers:
+        - name: mock-services-wiremocks
+          image: $SERVER_REPO_BASE_WIREMOCK
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WIREMOCK_OPTIONS
+              value: --port=8089,--https-port=8088,--max-request-journal=1000,--local-response-templating,--root-dir=/home/wiremock/storage
+          ports:
+            - name: wiremocks
+              containerPort: 8089
+              protocol: TCP
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      imagePullSecrets:
+        - name: sreacr
+      volumes:
+        - emptyDir: {}
+          name: wiremock-storage
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-services-wiremocks
+spec:
+  selector:
+    app: mock-services-wiremocks
+  ports:
+    - port: 8089
+      protocol: TCP
+      targetPort: 8089
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-mock-services-wiremocks
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: wiremock.santana-repos.com.br
+      http:
+        paths:
+        - backend:
+            service:
+              name: mock-services-wiremocks
+              port:
+                number: 8089
+          path: /
+          pathType: ImplementationSpecific

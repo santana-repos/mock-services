@@ -1,0 +1,21 @@
+{
+    "id" : "0cb61840-4bef-498d-9e09-4829b6196ebe",
+    "request" : {
+      "urlPathPattern" : "/github/orgs/(.*)/members/(.*)",
+      "method" : "GET"
+    },
+    "response" : {
+      "status" : 200,
+      "jsonBody" : {
+        "memberId" : "{{request.path.[4]}}",
+        "orgId" : "{{request.path.[2]}}"
+      },
+      "headers" : {
+        "Content-Type" : "application/json"
+      },
+      "transformers" : [ "response-template" ]
+    },
+    "uuid" : "0cb61840-4bef-498d-9e09-4829b6196ebe",
+    "persistent" : true,
+    "insertionIndex" : 18
+  }
