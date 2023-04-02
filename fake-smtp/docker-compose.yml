@@ -1,0 +1,11 @@
+version: '3.9'
+
+services:
+  fake-smtp:
+    container_name: fake-smtp
+    image: fake-smtp:1.0
+    build:
+      context: ./
+      network: host
+    ports:
+      - "5555:22"
